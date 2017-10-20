@@ -1,10 +1,6 @@
 -module(progra3).
- 
- -export([main/1]).
+-export([main/1]).
 
-%lists:nthtail(length(L)-1, L). Last item of list
-
- 
 main(FileName) ->
     {ok, Binary} = file:read_file(FileName),
      Lines = [binary_to_list(Bin) || Bin <- binary:split(Binary, <<"\r","\n">>, [global]), Bin =/= << >>],
@@ -19,52 +15,37 @@ main(FileName) ->
 	 {Quantum, _} = string:to_integer(Tmp7),
 	 Valores = [Asignar, Salida, Acquire, Release, FinProg, Quantum],
 	 Programas = separarProgramas(T, [], [], 1),
-	 correr(Programas, Valores, Quantum).
-	 
- correr([], Valores, Quantum) -> io:fwrite("Fin");
- correr([Actual | Cola], [A, B, C, D, E, F], Quantum) ->
-	io:fwrite(Actual),
-	io:fwrite("\n"),
-	[H|T] = Actual,
-	Aux = string:slice(H, 0, 5),
-	if 
-		H == "stop" ->
-			%io:fwrite("Fin\n"),
-			correr(Cola, [A, B, C, D, E, F], 0);
-			
-		H == "acquire" ->
-			%io:fwrite("Acquire\n"),
-			if Quantum+C == F ->
-				correr([Cola|T], [A, B, C, D, E, F], 0);
-			true ->
-				correr([T|Cola], [A, B, C, D, E, F], Quantum+C)
-			end;
-			
-		H == "release" ->
-			%io:fwrite("Release\n"),
-			if Quantum+C == F ->
-				correr([Cola|T], [A, B, C, D, E, F], 0);
-			true ->
-				correr([T|Cola], [A, B, C, D, E, F], Quantum+D)
-			end;
-			
-		Aux == "write"  ->
-			%io:fwrite("Write\n"),
-			if Quantum+B >= F ->
-				correr([Cola|T], [A, B, C, D, E, F], 0);
-			true ->
-				correr([T|Cola], [A, B, C, D, E, F], Quantum+B)
-			end;
-			
+	 correr(Programas, Valores, 0, 0, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]).
+
+correr([], _, _, _, _) -> io:fwrite("Fin~n");
+correr([ProgramaActual|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual, Bloqueo, Variables) ->
+	[Instruccion|Cola] = ProgramaActual,
+	InstruccionAux = re:replace(Instruccion, " ", "", [global,{return,list}]),
+	Write = string:slice(Instruccion, 0, 5),
+	Binding = string:slice(InstruccionAux, 1, 1),
+	if
+		Instruccion == "stop" andalso QuantumActual+FinProg =< Quantum -> 
+			correr(T,  [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, Bloqueo, Variables);
+		Instruccion == "acquire" andalso QuantumActual+Acquire =< Quantum andalso Bloqueo == 0 ->
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual+Acquire, 1, Variables);
+		Instruccion == "acquire" andalso QuantumActual+Acquire =< Quantum andalso Bloqueo == 1 ->
+			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, 1, Variables);
+		Instruccion == "release" andalso QuantumActual + Release =< Quantum ->
+			correr(lists:append(T,[Cola]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, 0, Variables);
+		Write == "write" andalso QuantumActual+Salida =< Quantum ->
+			Index = hd(string:slice(InstruccionAux, 5, 6)) - 97,
+			Var = getList(Index, Variables, 0),
+			Id = lists:nthtail(length(ProgramaActual)-1, ProgramaActual),
+			io:fwrite("~w:~w~n",[Id, Var]),
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum+Salida, Bloqueo, Variables);
+		Binding == "=" andalso QuantumActual+Asignar =< Quantum->
+			Index = hd(string:slice(InstruccionAux, 0, 1)) - 97,
+			{Valor, _} = string:to_integer(string:slice(InstruccionAux, 2, string:len(InstruccionAux))),
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum+Salida, Bloqueo, modificarLista(Variables, Valor, Index, 0, []));
 		true ->
-			%io:fwrite("Asignar\n"),
-			if Quantum+C == F ->
-				correr([Cola|T], [A, B, C, D, E, F], 0);
-			true ->
-				correr([T|Cola], [A, B, C, D, E, F], Quantum+A)
-			end
+			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, Bloqueo, Variables)
 	end.
- 
+
 separarProgramas([], Total, Acc, Id) -> Total;
 separarProgramas([H | T], Total, Acc, Id) ->
 	if H == "stop" -> 
@@ -72,14 +53,25 @@ separarProgramas([H | T], Total, Acc, Id) ->
 		NTotal = Total ++ [NewAcc],
 		separarProgramas(T, NTotal, [], Id+1);
 	true -> 
-		%io:fwrite("false"),
 		NewAcc = Acc ++ [H],
 		separarProgramas(T, Total, NewAcc, Id)
 	end.
-	 
-for(Inicio, Fin, Acc) when Inicio >= Fin+1 -> Acc;
-	 
-for(Inicio, Fin, Acc) -> 
-	List = Acc ++ [Inicio],
-	for(Inicio+1, Fin, List).
-	
+
+getList(Index, [H|T], Acc) ->
+	if
+		Index == Acc ->
+			H;
+		Index > Acc ->
+			getList(Index, T, Acc+1);
+		true ->
+			-1
+	end.
+
+modificarLista([], Valor, Index, Acc, AccLista) -> AccLista;
+modificarLista([H|T], Valor, Index, Acc, AccLista)->
+	if
+		Acc == Index ->
+			modificarLista(T, Valor, Index, Acc+1, AccLista++[Valor]);
+		true ->
+			modificarLista(T, Valor, Index, Acc+1, AccLista++[H])
+		end.
