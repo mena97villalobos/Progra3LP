@@ -1,21 +1,23 @@
 -module(progra3).
--export([main/1]).
+-export([main/0]).
+-compile([debug_info]).
 
-main(FileName) ->
-    {ok, Binary} = file:read_file(FileName),
-     Lines = [binary_to_list(Bin) || Bin <- binary:split(Binary, <<"\r","\n">>, [global]), Bin =/= << >>],
-	 [H | T] = Lines,
-	 [Tmp1, Tmp2, Tmp3, Tmp4, Tmp5, Tmp6, Tmp7] = string:tokens(H, " "), %Valores de quantum y eso
-	 {Num, _} = string:to_integer(Tmp1),
-	 {Asignar, _} = string:to_integer(Tmp2),
-	 {Salida, _} = string:to_integer(Tmp3),
-	 {Acquire, _} = string:to_integer(Tmp4),
-	 {Release, _} = string:to_integer(Tmp5),
-	 {FinProg, _} = string:to_integer(Tmp6),
-	 {Quantum, _} = string:to_integer(Tmp7),
-	 Valores = [Asignar, Salida, Acquire, Release, FinProg, Quantum],
-	 Programas = separarProgramas(T, [], [], 1),
-	 correr(Programas, Valores, 0, 0, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]).
+main() ->
+	{_,[FileName]} = io:fread("Path al archivo de pruebas> ","~s"),
+	{ok, Binary} = file:read_file(FileName),
+	Lines = [binary_to_list(Bin) || Bin <- binary:split(Binary, <<"\r","\n">>, [global]), Bin =/= << >>],
+	[H | T] = Lines,
+	[Tmp1, Tmp2, Tmp3, Tmp4, Tmp5, Tmp6, Tmp7] = string:tokens(H, " "), %Valores de quantum y eso
+	{_Num, _} = string:to_integer(Tmp1),
+	{Asignar, _} = string:to_integer(Tmp2),
+	{Salida, _} = string:to_integer(Tmp3),
+	{Acquire, _} = string:to_integer(Tmp4),
+	{Release, _} = string:to_integer(Tmp5),
+	{FinProg, _} = string:to_integer(Tmp6),
+	{Quantum, _} = string:to_integer(Tmp7),
+	Valores = [Asignar, Salida, Acquire, Release, FinProg, Quantum],
+	Programas = separarProgramas(T, [], [], 1),
+	correr(Programas, Valores, 0, 0, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]).
 
 correr([], _, _, _, _) -> io:fwrite("Fin~n");
 correr([ProgramaActual|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual, Bloqueo, Variables) ->
@@ -46,7 +48,7 @@ correr([ProgramaActual|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum]
 			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, Bloqueo, Variables)
 	end.
 
-separarProgramas([], Total, Acc, Id) -> Total;
+separarProgramas([], Total, _Acc, _Id) -> Total;
 separarProgramas([H | T], Total, Acc, Id) ->
 	if H == "stop" -> 
 		NewAcc = Acc ++ [H, Id],
@@ -67,7 +69,7 @@ getList(Index, [H|T], Acc) ->
 			-1
 	end.
 
-modificarLista([], Valor, Index, Acc, AccLista) -> AccLista;
+modificarLista([], _, _, _, AccLista) -> AccLista;
 modificarLista([H|T], Valor, Index, Acc, AccLista)->
 	if
 		Acc == Index ->
