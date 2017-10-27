@@ -17,7 +17,7 @@ main() ->
 	{Quantum, _} = string:to_integer(Tmp7),
 	Valores = [Asignar, Salida, Acquire, Release, FinProg, Quantum],
 	Programas = separarProgramas(T, [], [], 1),
-	correr(Programas, Valores, 0, 0, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]).
+	correr(Programas, Valores, Quantum, 0, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]).
 
 correr([], _, _, _, _) -> io:fwrite("Fin~n");
 correr([ProgramaActual|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual, Bloqueo, Variables) ->
@@ -26,26 +26,26 @@ correr([ProgramaActual|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum]
 	Write = string:slice(Instruccion, 0, 5),
 	Binding = string:slice(InstruccionAux, 1, 1),
 	if
-		Instruccion == "stop" andalso QuantumActual+FinProg =< Quantum -> 
-			correr(T,  [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, Bloqueo, Variables);
-		Instruccion == "acquire" andalso QuantumActual+Acquire =< Quantum andalso Bloqueo == 0 ->
-			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual+Acquire, 1, Variables);
-		Instruccion == "acquire" andalso QuantumActual+Acquire =< Quantum andalso Bloqueo == 1 ->
-			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, 1, Variables);
+		Instruccion == "stop" andalso QuantumActual > 0 -> 
+			correr(T,  [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum, Bloqueo, Variables);
+		Instruccion == "acquire" andalso QuantumActual > 0 andalso Bloqueo == 0 ->
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual-Acquire, 1, Variables);
+		Instruccion == "acquire" andalso QuantumActual > 0 andalso Bloqueo == 1 ->
+			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum, 1, Variables);
 		Instruccion == "release" andalso QuantumActual + Release =< Quantum ->
-			correr(lists:append(T,[Cola]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, 0, Variables);
-		Write == "write" andalso QuantumActual+Salida =< Quantum ->
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual-Release, 0, Variables);
+		Write == "write" andalso QuantumActual > 0 ->
 			Index = hd(string:slice(InstruccionAux, 5, 6)) - 97,
 			Var = getList(Index, Variables, 0),
 			Id = lists:nthtail(length(ProgramaActual)-1, ProgramaActual),
 			io:fwrite("~w:~w~n",[Id, Var]),
-			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum+Salida, Bloqueo, Variables);
-		Binding == "=" andalso QuantumActual+Asignar =< Quantum->
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual-Salida, Bloqueo, Variables);
+		Binding == "=" andalso QuantumActual > 0->
 			Index = hd(string:slice(InstruccionAux, 0, 1)) - 97,
 			{Valor, _} = string:to_integer(string:slice(InstruccionAux, 2, string:len(InstruccionAux))),
-			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum+Salida, Bloqueo, modificarLista(Variables, Valor, Index, 0, []));
+			correr([Cola|T], [Asignar, Salida, Acquire, Release, FinProg, Quantum], QuantumActual-Asignar, Bloqueo, modificarLista(Variables, Valor, Index, 0, []));
 		true ->
-			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], 0, Bloqueo, Variables)
+			correr(lists:append(T,[ProgramaActual]), [Asignar, Salida, Acquire, Release, FinProg, Quantum], Quantum, Bloqueo, Variables)
 	end.
 
 separarProgramas([], Total, _Acc, _Id) -> Total;

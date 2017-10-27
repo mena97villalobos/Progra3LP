@@ -1,0 +1,31 @@
+3 1 1 2 1 1 2
+a = 18
+b = 1
+c = 7
+d = 8
+write d
+acquire
+c = 7
+write c
+release
+e = 1
+stop
+a = 2
+write a
+c = 1
+write c
+acquire
+write a
+release
+stop
+e = 7
+write e
+write a
+b = 9
+acquire
+c = 8
+d = 9
+e = 6
+write c
+release
+stop
